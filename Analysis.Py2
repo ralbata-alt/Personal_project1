@@ -1,0 +1,91 @@
+import whisper
+import os
+import datetime
+from google.colab import files
+
+# 1. تهيئة المحرك
+class MediaAnalyzer:
+    def __init__(self):
+        print("[*] جاري تحميل نموذج الذكاء الاصطناعي...")
+        # تحميل النموذج الأساسي (Base) المتوفر في الخطة المجانية
+        self.model = whisper.load_model("base")
+
+    def get_file_info(self, file_path: str):
+        """استخراج البيانات التقنية للملف"""
+        file_stats = os.stat(file_path)
+        # استخراج الامتداد (نوع الفيديو)
+        file_extension = os.path.splitext(file_path)[1].upper().replace('.', '')
+        # حساب الحجم بالميجابايت
+        file_size_mb = file_stats.st_size / (1024 * 1024)
+        # تاريخ الإنشاء/الرفع
+        creation_time = datetime.datetime.fromtimestamp(file_stats.st_ctime).strftime('%Y-%m-%d %H:%M:%S')
+        
+        return {
+            "name": file_path,
+            "type": file_extension,
+            "size_mb": round(file_size_mb, 2),
+            "date": creation_time
+        }
+
+    def process_media(self, file_path: str):
+        if not os.path.exists(file_path):
+            return {"error": f"الملف '{file_path}' غير موجود في مسار العمل."}
+
+        # عرض بيانات الفيديو عند التحديد
+        info = self.get_file_info(file_path)
+        print(f"\n[+] تم تحديد الملف بنجاح:")
+        print(f"    - الاسم: {info['name']}")
+        print(f"    - النوع: {info['type']}")
+        print(f"    - الحجم: {info['size_mb']} MB")
+        
+        print(f"\n[*] بدأ تحليل المحتوى الآن... يرجى الانتظار")
+        
+        # معالجة الصوت وتحويله لنص
+        result = self.model.transcribe(file_path)
+        transcript_text = result.get('text', '')
+        generated_tags = self._extract_tags(transcript_text)
+
+        return {
+            "info": info,
+            "transcript": transcript_text,
+            "tags": generated_tags
+        }
+
+    def _extract_tags(self, text: str):
+        """استخراج الوسوم الذكية للأرشفة"""
+        words = text.split()
+        tags = list(set([w.strip(",.?!") for w in words if len(w) > 5]))
+        return tags[:8]
+
+# --- تشغيل النظام ---
+
+# طلب رفع الملف من المستخدم
+print("فيديو 11")
+uploaded = files.upload()
+
+# تحديد اسم الملف المطلوب
+file_target = "فيديو 11" 
+
+if file_target in uploaded or os.path.exists(file_target):
+    ai_service = MediaAnalyzer()
+    results = ai_service.process_media(file_target)
+
+    if "error" in results:
+        print(f"[-] {results['error']}")
+    else:
+        print("\n" + "="*40)
+        print("📊 ملخص بيانات الفيديو والتحليل:")
+        print(f"- اسم الملف: {results['info']['name']}")
+        print(f"- نوع التنسيق: {results['info']['type']}")
+        print(f"- حجم البيانات: {results['info']['size_mb']} MB")
+        
+        print("\n📝 النص المستخرج (Transcription):")
+        print(results["transcript"])
+        
+        print("\n🏷️ الوسوم الذكية المقترحة للأرشفة:")
+        print(results["tags"])
+        print("="*40)
+
+git aad
+else:
+    print(f"[-] خطأ: لم يتم العثور على ملف باسم '{file_target}'. يرجى التأكد من اسم الملف المرفوع.")
